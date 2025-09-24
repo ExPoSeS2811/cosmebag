@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/chekcing supabase/**)",
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/CosmeBag/cosmebag/src/entities/**)",
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/CosmeBag/cosmebag/src/shared/hooks/**)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/CosmeBag/cosmebag/src/pages/**)",
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/CosmeBag/cosmebag/src/app/**)",
+      "Read(//Users/gvrasskazov/Desktop/MiniProjects/CosmeBag/cosmebag/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
