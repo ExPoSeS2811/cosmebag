@@ -50,7 +50,7 @@ function AppWithPhone() {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('test@mail.com');
   const [password, setPassword] = useState('test@mail.com');
-  const [activeView, setActiveView] = useState<'home' | 'bag' | 'scan' | 'products' | 'passport'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'bag' | 'scan' | 'products' | 'passport' | 'product'>('home');
   const [activeTab, setActiveTab] = useState<'bag' | 'wishlist'>('bag');
   const [greeting, setGreeting] = useState('Привет');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -68,6 +68,8 @@ function AppWithPhone() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showScanner, setShowScanner] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BeautyProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<BeautyProduct | null>(null);
+  const [productTab, setProductTab] = useState<'details' | 'ingredients' | 'reviews'>('details');
 
   useEffect(() => {
     checkUser();
@@ -260,6 +262,11 @@ function AppWithPhone() {
 
     return () => clearTimeout(debounce);
   }, [productSearchTerm]);
+
+  const openProductDetail = (product: BeautyProduct) => {
+    setSelectedProduct(product);
+    setActiveView('product');
+  };
 
   const stats = [
     { label: 'В косметичке', value: String(bagItems.filter(i => i.status === 'owned').length), icon: Package, trend: '+3', color: '#667eea' },
@@ -980,6 +987,25 @@ function AppWithPhone() {
                     .map((item) => (
                       <div
                         key={item.id}
+                        onClick={() => {
+                          // Создаем BeautyProduct из BagItem для совместимости
+                          const product: BeautyProduct = {
+                            id: item.product_id,
+                            barcode: item.product_id,
+                            name: item.product_data?.name || 'Unknown Product',
+                            brand: item.product_data?.brand || 'Unknown Brand',
+                            image_url: item.product_data?.image_url || '',
+                            categories: item.product_data?.category || '',
+                            ingredients: '',
+                            quantity: '',
+                            packaging: '',
+                            countries: '',
+                            stores: '',
+                            rating: 4.5,
+                            reviews: 120
+                          };
+                          openProductDetail(product);
+                        }}
                         style={{
                           backgroundColor: 'white',
                           borderRadius: '16px',
@@ -992,12 +1018,43 @@ function AppWithPhone() {
                         <div style={{
                           width: '100%',
                           height: '120px',
-                          background: 'linear-gradient(135deg, #fce7f3 0%, #ddd6fe 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          backgroundColor: '#f8f9fa',
+                          overflow: 'hidden',
+                          position: 'relative'
                         }}>
-                          <Package size={28} color="#a78bfa" />
+                          {item.product_data?.image_url ? (
+                            <img
+                              src={item.product_data.image_url}
+                              alt={item.product_data.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  parent.style.background = 'linear-gradient(135deg, #fce7f3 0%, #ddd6fe 100%)';
+                                  parent.style.display = 'flex';
+                                  parent.style.alignItems = 'center';
+                                  parent.style.justifyContent = 'center';
+                                  parent.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>';
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              width: '100%',
+                              height: '100%',
+                              background: 'linear-gradient(135deg, #fce7f3 0%, #ddd6fe 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <Package size={28} color="#a78bfa" />
+                            </div>
+                          )}
                         </div>
                         <div style={{ padding: '12px' }}>
                           <h3 style={{
@@ -1345,6 +1402,7 @@ function AppWithPhone() {
                       {catalogProducts.map((item) => (
                         <div
                           key={item.id}
+                          onClick={() => openProductDetail(item)}
                           style={{
                             backgroundColor: 'white',
                             borderRadius: '16px',
@@ -1510,6 +1568,374 @@ function AppWithPhone() {
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {activeView === 'product' && selectedProduct && (
+              <div>
+                {/* Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '20px'
+                }}>
+                  <button
+                    onClick={() => setActiveView('home')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '8px',
+                      marginRight: '12px'
+                    }}
+                  >
+                    <ArrowLeft size={24} color="#1e293b" />
+                  </button>
+                  <h1 style={{
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    flex: 1,
+                    color: '#1e293b'
+                  }}>
+                    Детали продукта
+                  </h1>
+                  <button
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '8px'
+                    }}
+                  >
+                    <Share2 size={20} color="#667eea" />
+                  </button>
+                </div>
+
+                {/* Product Image */}
+                <div style={{
+                  width: '100%',
+                  height: '300px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  marginBottom: '20px',
+                  position: 'relative'
+                }}>
+                  {selectedProduct.image_url ? (
+                    <img
+                      src={selectedProduct.image_url}
+                      alt={selectedProduct.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      background: 'linear-gradient(135deg, #fce7f3 0%, #ddd6fe 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Package size={80} color="#a78bfa" />
+                    </div>
+                  )}
+                  <button
+                    style={{
+                      position: 'absolute',
+                      top: '16px',
+                      right: '16px',
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Heart size={20} color="#f43f5e" />
+                  </button>
+                </div>
+
+                {/* Product Info */}
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                }}>
+                  <h2 style={{
+                    fontSize: '22px',
+                    fontWeight: 'bold',
+                    color: '#1e293b',
+                    marginBottom: '8px'
+                  }}>
+                    {selectedProduct.name}
+                  </h2>
+                  <p style={{
+                    fontSize: '16px',
+                    color: '#667eea',
+                    fontWeight: '600',
+                    marginBottom: '12px'
+                  }}>
+                    {selectedProduct.brand}
+                  </p>
+
+                  {/* Rating */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          size={16}
+                          fill={i < Math.floor(selectedProduct.rating || 0) ? '#fbbf24' : 'none'}
+                          color={i < Math.floor(selectedProduct.rating || 0) ? '#fbbf24' : '#e2e8f0'}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '14px', color: '#64748b' }}>
+                      {selectedProduct.rating?.toFixed(1)} ({selectedProduct.reviews} отзывов)
+                    </span>
+                  </div>
+
+                  {/* Product Details */}
+                  {selectedProduct.quantity && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px'
+                    }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Объем:</span>
+                      <span style={{ color: '#1e293b', fontSize: '14px', fontWeight: '500' }}>
+                        {selectedProduct.quantity}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedProduct.categories && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '16px'
+                    }}>
+                      <span style={{ color: '#64748b', fontSize: '14px' }}>Категория:</span>
+                      <span style={{ color: '#1e293b', fontSize: '14px', fontWeight: '500' }}>
+                        {selectedProduct.categories}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tabs */}
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: '12px',
+                    padding: '4px',
+                    marginBottom: '20px'
+                  }}>
+                    {['details', 'ingredients', 'reviews'].map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setProductTab(tab as any)}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          backgroundColor: productTab === tab ? 'white' : 'transparent',
+                          color: productTab === tab ? '#667eea' : '#64748b',
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          boxShadow: productTab === tab ? '0 2px 4px rgba(0,0,0,0.08)' : 'none'
+                        }}
+                      >
+                        {tab === 'details' ? 'Детали' : tab === 'ingredients' ? 'Состав' : 'Отзывы'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tab Content */}
+                  {productTab === 'details' && (
+                    <div>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                        marginBottom: '12px'
+                      }}>
+                        О продукте
+                      </h3>
+                      <p style={{
+                        fontSize: '14px',
+                        color: '#64748b',
+                        lineHeight: '1.5',
+                        marginBottom: '16px'
+                      }}>
+                        Этот продукт от {selectedProduct.brand} разработан для обеспечения качественного ухода.
+                        Подходит для регулярного использования.
+                      </p>
+
+                      {selectedProduct.stores && (
+                        <div>
+                          <h4 style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#1e293b',
+                            marginBottom: '8px'
+                          }}>
+                            Где купить
+                          </h4>
+                          <p style={{
+                            fontSize: '14px',
+                            color: '#64748b'
+                          }}>
+                            {selectedProduct.stores}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {productTab === 'ingredients' && (
+                    <div>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                        marginBottom: '12px'
+                      }}>
+                        Состав
+                      </h3>
+                      <p style={{
+                        fontSize: '14px',
+                        color: '#64748b',
+                        lineHeight: '1.5'
+                      }}>
+                        {selectedProduct.ingredients || 'Информация о составе недоступна'}
+                      </p>
+                    </div>
+                  )}
+
+                  {productTab === 'reviews' && (
+                    <div>
+                      <h3 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                        marginBottom: '12px'
+                      }}>
+                        Отзывы ({selectedProduct.reviews})
+                      </h3>
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '20px',
+                        color: '#94a3b8'
+                      }}>
+                        <p>Отзывы пока не загружены</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <button
+                    onClick={async () => {
+                      await bagService.addToWishlist(
+                        selectedProduct.barcode || selectedProduct.id,
+                        {
+                          name: selectedProduct.name,
+                          brand: selectedProduct.brand,
+                          category: selectedProduct.categories,
+                          price: 0,
+                          image_url: selectedProduct.image_url
+                        },
+                        'Added from product detail',
+                        5
+                      );
+                      alert('✅ Добавлено в вишлист!');
+                      fetchUserData();
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '12px',
+                      border: '2px solid #667eea',
+                      backgroundColor: 'transparent',
+                      color: '#667eea',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <Heart size={18} />
+                    В вишлист
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await bagService.addProductToBag(
+                        selectedProduct.barcode || selectedProduct.id,
+                        {
+                          name: selectedProduct.name,
+                          brand: selectedProduct.brand,
+                          category: selectedProduct.categories,
+                          price: 0,
+                          image_url: selectedProduct.image_url
+                        },
+                        'Added from product detail'
+                      );
+                      alert('✅ Добавлено в косметичку!');
+                      fetchUserData();
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <ShoppingBag size={18} />
+                    В косметичку
+                  </button>
+                </div>
               </div>
             )}
 
