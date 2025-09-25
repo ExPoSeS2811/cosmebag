@@ -163,10 +163,15 @@ function AppWithPhone() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isInBag, setIsInBag] = useState(false);
   const [isEditingPassport, setIsEditingPassport] = useState(false);
-  const [editedPassport, setEditedPassport] = useState({
-    skin_type: '' as 'normal' | 'dry' | 'oily' | 'combination' | 'sensitive' | '',
-    skin_concerns: [] as string[],
-    allergies: [] as string[],
+  const [editedPassport, setEditedPassport] = useState<{
+    skin_type?: 'normal' | 'dry' | 'oily' | 'combination' | 'sensitive';
+    skin_concerns: string[];
+    allergies: string[];
+    notes: string;
+  }>({
+    skin_type: undefined,
+    skin_concerns: [],
+    allergies: [],
     notes: ''
   });
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -639,7 +644,7 @@ function AppWithPhone() {
 
   const startEditingPassport = () => {
     setEditedPassport({
-      skin_type: passport?.skin_type || '',
+      skin_type: passport?.skin_type || undefined,
       skin_concerns: passport?.skin_concerns || [],
       allergies: passport?.allergies || [],
       notes: passport?.notes || ''
@@ -666,7 +671,7 @@ function AppWithPhone() {
   const cancelEditingPassport = () => {
     setIsEditingPassport(false);
     setEditedPassport({
-      skin_type: '',
+      skin_type: undefined,
       skin_concerns: [],
       allergies: [],
       notes: ''
