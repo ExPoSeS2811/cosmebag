@@ -81,7 +81,12 @@ export const bagService = {
   async addProductToBag(productId: string, productData: ProductData, notes?: string) {
     const { data, error } = await supabase.rpc('add_product_to_bag', {
       p_product_id: productId,
-      p_product_data: productData,
+      p_product_name: productData.name,
+      p_brand: productData.brand,
+      p_category: productData.category,
+      p_price: productData.price || 0,
+      p_description: productData.description || null,
+      p_image_url: productData.image_url || null,
       p_notes: notes || null
     });
 
@@ -95,9 +100,14 @@ export const bagService = {
   async addToWishlist(productId: string, productData: ProductData, notes?: string, priority: number = 1) {
     const { data, error } = await supabase.rpc('add_to_wishlist', {
       p_product_id: productId,
-      p_product_data: productData,
-      p_notes: notes || null,
-      p_priority: priority
+      p_product_name: productData.name,
+      p_brand: productData.brand,
+      p_category: productData.category,
+      p_price: productData.price || 0,
+      p_description: productData.description || null,
+      p_image_url: productData.image_url || null,
+      p_priority: priority,
+      p_notes: notes || null
     });
 
     if (error) {
@@ -191,6 +201,55 @@ export const bagService = {
     if (error) {
       console.error('Error updating product:', error);
       throw error;
+    }
+    return data;
+  },
+
+  // Обновление косметички
+  async updateBag(bagId: string, updates: Partial<CosmeticBag>) {
+    const { data, error } = await supabase
+      .from('cosmetic_bags')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bagId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating bag:', error);
+      throw error;
+    }
+    return data;
+  },
+
+  // Получить косметичку по ID (для публичного просмотра)
+  async fetchBagById(bagId: string): Promise<CosmeticBag | null> {
+    const { data, error } = await supabase
+      .from('cosmetic_bags')
+      .select('*')
+      .eq('id', bagId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching bag by id:', error);
+      return null;
+    }
+    return data;
+  },
+
+  // Получить профиль владельца косметички
+  async fetchBagOwnerProfile(userId: string): Promise<Profile | null> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching bag owner profile:', error);
+      return null;
     }
     return data;
   }

@@ -22,6 +22,8 @@ export interface CosmeticBag {
   is_public: boolean;
   products_count: number;
   followers_count: number;
+  following_count?: number;
+  image_url: string | null;
   bio: string | null;
   created_at: string;
   updated_at: string;
@@ -79,4 +81,11 @@ export interface CosmetologistVisit {
   attachments: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface BagFollower {
+  id: string;
+  follower_bag_id: string;
+  following_bag_id: string;
+  created_at: string;
 }
