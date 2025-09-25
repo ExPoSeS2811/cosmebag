@@ -131,8 +131,12 @@ function AppWithPhone() {
   const [bagItems, setBagItems] = useState<BagItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('test@mail.com');
-  const [password, setPassword] = useState('test@mail.com');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
   const [activeView, setActiveView] = useState<'home' | 'bag' | 'scan' | 'products' | 'passport' | 'product' | 'visit' | 'followers' | 'following'>('home');
   const [previousView, setPreviousView] = useState<'home' | 'bag' | 'scan' | 'products' | 'passport' | 'product' | 'visit' | 'followers' | 'following'>('home');
   const bagImageRef = useRef<HTMLInputElement>(null);
@@ -281,11 +285,75 @@ function AppWithPhone() {
     setError(null);
 
     try {
-      const { data, error } = await authService.signIn(email, password);
-      if (error) throw error;
-      setUser(data.user);
+      if (isRegistering) {
+        // Регистрация
+        if (password !== confirmPassword) {
+          setError('Пароли не совпадают');
+          setLoading(false);
+          return;
+        }
+
+        if (password.length < 6) {
+          setError('Пароль должен быть не менее 6 символов');
+          setLoading(false);
+          return;
+        }
+
+        if (!username || username.length < 3) {
+          setError('Username должен быть не менее 3 символов');
+          setLoading(false);
+          return;
+        }
+
+        const { data, error } = await authService.signUp(email, password, fullName);
+        if (error) throw error;
+
+        // После регистрации создаем профиль пользователя
+        if (data.user) {
+          // Создаем профиль с username
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              username: username.toLowerCase().replace(/[^a-z0-9_]/g, ''),
+              full_name: fullName || null
+            });
+
+          if (profileError && profileError.code !== '23505') {
+            console.error('Error creating profile:', profileError);
+          }
+
+          // Проверяем, требуется ли подтверждение email
+          if (data.user.email_confirmed_at) {
+            // Email уже подтвержден (например, если отключено подтверждение)
+            setUser(data.user);
+            showToast('Регистрация успешна!', 'success');
+          } else {
+            // Требуется подтверждение email
+            setError('Регистрация успешна! Проверьте вашу почту для подтверждения аккаунта.');
+            setIsRegistering(false);
+          }
+        }
+      } else {
+        // Вход
+        const { data, error } = await authService.signIn(email, password);
+        if (error) {
+          if (error.message === 'Email not confirmed') {
+            setError('Email не подтвержден. Проверьте вашу почту для активации аккаунта.');
+          } else if (error.message === 'Invalid login credentials') {
+            setError('Неверный email или пароль');
+          } else {
+            setError(error.message);
+          }
+          throw error;
+        }
+        setUser(data.user);
+      }
     } catch (err: any) {
-      setError(err.message);
+      // Ошибка уже установлена выше
+      if (!error) {
+        setError('Произошла ошибка при входе');
+      }
     } finally {
       setLoading(false);
     }
@@ -298,6 +366,7 @@ function AppWithPhone() {
     setBag(null);
     setBagItems([]);
     setActiveView('home');
+    showToast('Вы вышли из аккаунта', 'info');
   };
 
   // Using showToast from useToast hook
@@ -1031,7 +1100,7 @@ function AppWithPhone() {
   const stats = [
     { label: 'В косметичке', value: String(bagItems.filter(i => i.status === 'owned').length), icon: Package, trend: '+3', color: '#667eea' },
     { label: 'В вишлисте', value: String(bagItems.filter(i => i.status === 'wishlist').length), icon: Heart, trend: '+2', color: '#f43f5e' },
-    { label: 'Подписки', value: '0', icon: Users, trend: '+12', color: '#ec4899' },
+    { label: 'Подписки', value: String(following.length), icon: Users, trend: '+12', color: '#ec4899' },
   ];
 
   const subscriptionUpdates = [
@@ -1181,7 +1250,95 @@ function AppWithPhone() {
             Your Personal Beauty Companion
           </p>
 
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '600',
+            color: '#1e293b',
+            marginBottom: '24px',
+            textAlign: 'center'
+          }}>
+            {isRegistering ? 'Регистрация' : 'Вход'}
+          </h2>
+
           <form onSubmit={handleSignIn} style={{ width: '100%' }}>
+            {isRegistering && (
+              <>
+                <div style={{ position: 'relative', marginBottom: '20px' }}>
+                  <div style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '20px'
+                  }}>
+                    👤
+                  </div>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Ваше имя"
+                    style={{
+                      width: '100%',
+                      padding: '16px 16px 16px 48px',
+                      fontSize: '16px',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '16px',
+                      outline: 'none',
+                      backgroundColor: '#f8fafc',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#667eea';
+                      e.target.style.backgroundColor = '#ffffff';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.backgroundColor = '#f8fafc';
+                    }}
+                  />
+                </div>
+
+                <div style={{ position: 'relative', marginBottom: '20px' }}>
+                  <div style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '20px'
+                  }}>
+                    @
+                  </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    placeholder="Username (минимум 3 символа)"
+                    required
+                    pattern="[a-z0-9_]{3,}"
+                    style={{
+                      width: '100%',
+                      padding: '16px 16px 16px 48px',
+                      fontSize: '16px',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '16px',
+                      outline: 'none',
+                      backgroundColor: '#f8fafc',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#667eea';
+                      e.target.style.backgroundColor = '#ffffff';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.backgroundColor = '#f8fafc';
+                    }}
+                  />
+                </div>
+              </>
+            )}
+
             <div style={{ position: 'relative', marginBottom: '20px' }}>
               <div style={{
                 position: 'absolute',
@@ -1196,7 +1353,7 @@ function AppWithPhone() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address"
+                placeholder="Email"
                 required
                 style={{
                   width: '100%',
@@ -1270,6 +1427,45 @@ function AppWithPhone() {
               </div>
             )}
 
+            {isRegistering && (
+              <div style={{ position: 'relative', marginBottom: '24px' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '20px'
+                }}>
+                  🔒
+                </div>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Подтвердите пароль"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '16px 16px 16px 48px',
+                    fontSize: '16px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '16px',
+                    outline: 'none',
+                    backgroundColor: '#f8fafc',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#667eea';
+                    e.target.style.backgroundColor = '#ffffff';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#e2e8f0';
+                    e.target.style.backgroundColor = '#f8fafc';
+                  }}
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -1286,18 +1482,32 @@ function AppWithPhone() {
                 boxShadow: loading ? 'none' : '0 10px 30px rgba(102, 126, 234, 0.4)'
               }}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Загрузка...' : (isRegistering ? 'Зарегистрироваться' : 'Войти')}
             </button>
           </form>
 
-          <p style={{
-            textAlign: 'center',
-            color: '#6b7280',
-            fontSize: '12px',
-            marginTop: '16px'
-          }}>
-            test@mail.com / test@mail.com
-          </p>
+          <button
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setError(null);
+              setEmail('');
+              setPassword('');
+              setConfirmPassword('');
+              setUsername('');
+              setFullName('');
+            }}
+            style={{
+              marginTop: '20px',
+              background: 'none',
+              border: 'none',
+              color: '#667eea',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer'
+            }}
+          >
+            {isRegistering ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться'}
+          </button>
         </div>
       </PhoneFrame>
     );
@@ -1372,34 +1582,6 @@ function AppWithPhone() {
                   <p style={{ color: '#64748b', fontSize: '14px' }}>Управляй своей коллекцией красоты</p>
                 </div>
 
-                {/* Search Bar */}
-                <div style={{
-                  position: 'relative',
-                  marginBottom: '24px'
-                }}>
-                  <Search size={20} color="#94a3b8" style={{
-                    position: 'absolute',
-                    left: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)'
-                  }} />
-                  <input
-                    type="text"
-                    placeholder="Поиск продуктов, косметичек..."
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px 12px 48px',
-                      borderRadius: '16px',
-                      border: '1px solid #e2e8f0',
-                      fontSize: '15px',
-                      outline: 'none',
-                      backgroundColor: 'white',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
                 {/* Stats Cards */}
                 <div style={{
                   display: 'grid',
@@ -1421,7 +1603,10 @@ function AppWithPhone() {
                           cursor: 'pointer'
                         }}
                         onClick={() => {
-                          if (stat.label !== 'Подписки') {
+                          if (stat.label === 'Подписки') {
+                            setPreviousView(activeView);
+                            setActiveView('following');
+                          } else {
                             setViewingOthersBag(false);
                             setActiveView('bag');
                           }
@@ -3992,6 +4177,24 @@ function AppWithPhone() {
                   }}>
                     Эстетический паспорт
                   </h1>
+                  <button
+                    onClick={handleSignOut}
+                    style={{
+                      background: '#fee2e2',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#dc2626',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    Выход
+                  </button>
                 </div>
 
                 {/* Edit Passport Form */}
@@ -4605,7 +4808,7 @@ function AppWithPhone() {
                       fontWeight: 'bold',
                       color: '#1e293b'
                     }}>
-                      Cosmetologist Visits
+                      Посещения косметолога
                     </h2>
                     <button
                       onClick={openVisitForm}
@@ -4624,7 +4827,7 @@ function AppWithPhone() {
                       }}
                     >
                       <Plus size={18} />
-                      Add Visit
+                      Добавить
                     </button>
                   </div>
 
@@ -4636,10 +4839,10 @@ function AppWithPhone() {
                       color: '#94a3b8'
                     }}>
                       <p style={{ fontSize: '14px', marginBottom: '8px' }}>
-                        No visits yet
+                        Пока нет записей
                       </p>
                       <p style={{ fontSize: '12px', color: '#cbd5e1' }}>
-                        Add your first cosmetologist visit
+                        Добавьте первую запись о посещении
                       </p>
                     </div>
                   ) : (
@@ -5391,26 +5594,25 @@ function AppWithPhone() {
                           height: '160px',
                           borderRadius: '12px',
                           backgroundColor: '#f3f4f6',
-                          backgroundImage: 'url("https://images.unsplash.com/photo-1559356513-db4c6c5e1d36?w=300&h=300&fit=crop")',
+                          backgroundImage: selectedVisit.attachments?.find((a: string) => a.startsWith('before:'))
+                            ? `url(${selectedVisit.attachments.find((a: string) => a.startsWith('before:'))?.replace('before:', '')})`
+                            : 'none',
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
-                          <div style={{
-                            position: 'absolute',
-                            top: '8px',
-                            right: '8px',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <span style={{ fontSize: '12px' }}>🔄</span>
-                          </div>
+                          {!selectedVisit.attachments?.find((a: string) => a.startsWith('before:')) && (
+                            <div style={{
+                              fontSize: '24px',
+                              opacity: 0.3
+                            }}>
+                              📷
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -5429,26 +5631,25 @@ function AppWithPhone() {
                           height: '160px',
                           borderRadius: '12px',
                           backgroundColor: '#f3f4f6',
-                          backgroundImage: 'url("https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300&h=300&fit=crop")',
+                          backgroundImage: selectedVisit.attachments?.find((a: string) => a.startsWith('after:'))
+                            ? `url(${selectedVisit.attachments.find((a: string) => a.startsWith('after:'))?.replace('after:', '')})`
+                            : 'none',
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}>
-                          <div style={{
-                            position: 'absolute',
-                            top: '8px',
-                            right: '8px',
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <span style={{ fontSize: '12px' }}>🔄</span>
-                          </div>
+                          {!selectedVisit.attachments?.find((a: string) => a.startsWith('after:')) && (
+                            <div style={{
+                              fontSize: '24px',
+                              opacity: 0.3
+                            }}>
+                              📷
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
